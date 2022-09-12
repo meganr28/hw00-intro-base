@@ -14,7 +14,7 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 const controls = {
   tesselations: 5,
   color: [ 255, 0, 0, 255 ],
-  shader:'Lambert',
+  shader: 'Noise',
   'Load Scene': loadScene, // A function pointer, essentially
 };
 
@@ -23,7 +23,7 @@ let square: Square;
 let cube: Cube;
 let prevTesselations: number = 5;
 let currentColor = vec4.fromValues(1, 0, 0, 1);
-let currentShader = 'Lambert';
+let currentShader = 'Noise';
 let time = 0;
 
 function loadScene() {
@@ -51,7 +51,7 @@ function main() {
                                                                                        controls.color[1] / 255, 
                                                                                        controls.color[2] / 255, 
                                                                                        controls.color[3] / 255); });
-  gui.add(controls,'shader', ['Lambert', 'Noise']).onChange(function() { currentShader = controls.shader });
+  gui.add(controls,'shader', ['Noise', 'Lambert']).onChange(function() { currentShader = controls.shader });
   gui.add(controls, 'Load Scene');
 
   // get canvas and webgl context
@@ -104,9 +104,9 @@ function main() {
     time++;
 
     renderer.render(camera, shader, currentColor, time, [
-      // icosphere,
+      icosphere,
       // square,
-      cube
+      // cube
     ]);
     stats.end();
 

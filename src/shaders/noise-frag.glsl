@@ -10,8 +10,11 @@
 // can compute what color to apply to its pixel based on things like vertex
 // position, light position, and vertex color.
 precision highp float;
+precision highp int;
 
 uniform vec4 u_Color; // The color with which to render this instance of geometry.
+
+uniform int u_Time;   // The current time elapsed since the start of the program.
 
 // These are the interpolated values out of the rasterizer, so you can't know
 // their specific values without knowing the vertices that contributed to them
@@ -24,6 +27,11 @@ out vec4 out_Col; // This is the final output color that you will see on your
                   // screen for the pixel that is currently being processed.
 
 const float PI = 3.1415926535897932384626433832795;
+
+vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d)
+{
+    return a + b * cos(6.28318 * (c * t + d));
+}
 
 // Interpolation function based on CIS 560 Slides - "Noise Functions"
 float noise3D(vec3 p) 
@@ -64,7 +72,7 @@ float interpolateNoise3D(float x, float y, float z)
     return cosineInterpolate(mix1, mix2, fractZ);
 }
 
-float fbm3D(float x, float y, float z)
+float fbm3D(vec3 p)
 {
     float total = 0.f;
     float persistence = 0.5f;
@@ -75,18 +83,24 @@ float fbm3D(float x, float y, float z)
         float freq = pow(2.f, float(i));
         float amp = pow(persistence, float(i));
 
-        total += amp * interpolateNoise3D(x * freq, y * freq, z * freq);
+        total += amp * interpolateNoise3D(p.x * freq, p.y * freq, p.z * freq);
     }
 
     return total;
+}
+
+mat4 rotateZ3D(float angle)
+{
+    return mat4(cos(angle), sin(angle), 0, 0,
+                -sin(angle), cos(angle), 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1);
 }
 
 void main()
 {
         // Material base color (before shading)
         vec4 diffuseColor = u_Color;
-
-        // Can apply matrix transform to color?
 
         // Calculate the diffuse term for Lambert shading
         float diffuseTerm = dot(normalize(fs_Nor), normalize(fs_LightVec));
@@ -100,6 +114,10 @@ void main()
                                                             //lit by our point light are not completely black.
 
         // Compute final shaded color
-        float fbm = fbm3D(fs_Pos.x, fs_Pos.y, fs_Pos.z);
-        out_Col = vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a) * fbm;
+        float s = sin(float(u_Time) / 500.0f);
+        vec3 p1 = vec3(fbm3D(fs_Pos.xyz), fbm3D(fs_Pos.xyz + vec3(1.3f, 3.5f, 4.5f)), fbm3D(fs_Pos.xyz + vec3(4.4f, 3.2f, 9.0f)));
+        vec3 p2 = vec3(fbm3D(fs_Pos.xyz), fbm3D(fs_Pos.xyz + vec3(10.3f, 3.3f, 1.4f)), fbm3D(fs_Pos.xyz + vec3(5.6f, 45.2f, 2.0f)));
+
+        float fbm = fbm3D(p1 + s * p2);
+        out_Col = vec4(vec3(fbm * diffuseColor.xyz) * lightIntensity, diffuseColor.a);
 }

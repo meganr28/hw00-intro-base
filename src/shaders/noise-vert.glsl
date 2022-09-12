@@ -6,6 +6,8 @@
 //If it were run on your CPU, each vertex would have to be processed in a FOR loop, one at a time.
 //This simultaneous transformation allows your program to run much faster, especially when rendering
 //geometry with millions of vertices.
+precision highp float;
+precision highp int;
 
 uniform mat4 u_Model;       // The matrix that defines the transformation of the
                             // object we're rendering. In this assignment,
@@ -35,8 +37,65 @@ out vec4 fs_Col;            // The color of each vertex. This is implicitly pass
 const vec4 lightPos = vec4(5, 5, 3, 1); //The position of our virtual light, which is used to compute the shading of
                                         //the geometry in the fragment shader.
 
+const float PI = 3.1415926535897932384626433832795;
+
+float noise3D(vec3 p) 
+{
+    return fract(sin((dot(p, vec3(127.1, 311.7, 191.999)))) * 43758.5453);
+}
+
+float cosineInterpolate(float a, float b, float t)
+{
+    float cos_t = (1.f - cos(t * PI)) * 0.5f;
+    return mix(a, b, cos_t);
+}
+
+float interpolateNoise3D(float x, float y, float z)
+{
+    int intX = int(floor(x));
+    float fractX = fract(x);
+    int intY = int(floor(y));
+    float fractY = fract(y);
+    int intZ = int(floor(z));
+    float fractZ = fract(z);
+
+    float v1 = noise3D(vec3(intX, intY, intZ));
+    float v2 = noise3D(vec3(intX + 1, intY, intZ));
+    float v3 = noise3D(vec3(intX, intY + 1, intZ));
+    float v4 = noise3D(vec3(intX + 1, intY + 1, intZ));
+    float v5 = noise3D(vec3(intX, intY, intZ + 1));
+    float v6 = noise3D(vec3(intX + 1, intY, intZ + 1));
+    float v7 = noise3D(vec3(intX, intY + 1, intZ + 1));
+    float v8 = noise3D(vec3(intX + 1, intY + 1, intZ + 1));
+
+    float i1 = cosineInterpolate(v1, v2, fractX);
+    float i2 = cosineInterpolate(v3, v4, fractX);
+    float mix1 = cosineInterpolate(i1, i2, fractY);
+    float i3 = cosineInterpolate(v5, v6, fractX);
+    float i4 = cosineInterpolate(v7, v8, fractX);
+    float mix2 = cosineInterpolate(i3, i4, fractY);
+    return cosineInterpolate(mix1, mix2, fractZ);
+}
+
+float fbm3D(vec3 p)
+{
+    float total = 0.f;
+    float persistence = 0.5f;
+    int octaves = 8;
+
+    for (int i = 1; i < octaves; ++i)
+    {
+        float freq = pow(2.f, float(i));
+        float amp = pow(persistence, float(i));
+
+        total += amp * interpolateNoise3D(p.x * freq, p.y * freq, p.z * freq);
+    }
+
+    return total;
+}
+
 // X-Axis Rotation Matrix
-mat4 rotate3D(float angle)
+mat4 rotateX3D(float angle)
 {
     return mat4(1, 0, 0, 0,
                 0, cos(angle), sin(angle), 0,
@@ -44,11 +103,29 @@ mat4 rotate3D(float angle)
                 0, 0, 0, 1);
 }
 
+// Y-Axis Rotation Matrix
+mat4 rotateY3D(float angle)
+{
+    return mat4(cos(angle), 0, -sin(angle), 0,
+                0, 1, 0, 0,
+                sin(angle), 0, cos(angle), 0,
+                0, 0, 0, 1);
+}
+
+// Z-Axis Rotation Matrix
+mat4 rotateZ3D(float angle)
+{
+    return mat4(cos(angle), sin(angle), 0, 0,
+                -sin(angle), cos(angle), 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1);
+}
+
 // Scale Matrix
 mat4 scale3D(vec3 c)
 {
     return mat4(c.x, 0, 0, 0,
-                0, c.x, 0, 0,
+                0, c.y, 0, 0,
                 0, 0, c.z, 0,
                 0, 0, 0, 1);
 }
@@ -66,8 +143,20 @@ mat4 translate3D(vec3 d)
 vec4 transformVertex(vec4 v)
 {
     vec4 tv = v.xyzw;
-    mat4 rot = rotate3D(float(u_Time) / 100.0f);
-    tv = rot * tv;
+
+    // Rotation 
+    mat4 rotX = rotateX3D(cos(float(u_Time) / 100.f));
+    mat4 rotY = rotateY3D(0.f);
+    mat4 rotZ = rotateZ3D(0.f);
+    mat4 rot = rotZ * rotY * rotX;
+
+    // Scale
+    mat4 scl = scale3D(vec3(cos(float(u_Time) / 200.f), 1.0f, sin(float(u_Time) / 200.f)));
+    
+    // Translate
+    mat4 trans = translate3D(vec3(0.f, 0.f, 0.f));
+
+    tv.y = (trans * rot * scl * tv).y;
     return tv;
 }
 
@@ -82,9 +171,10 @@ void main()
                                                             // perpendicular to the surface after the surface is transformed by
                                                             // the model matrix.
 
-
-    //float angle = sin(0.05f * float(u_Time.x));
     vec4 transformed_Pos = transformVertex(vs_Pos);
+
+    //float noise = sin(fbm3D((float(u_Time) / 100.0f) * vs_Pos.xyz));
+    //transformed_Pos = vs_Pos + noise * vs_Nor;
     vec4 modelposition = u_Model * (transformed_Pos);   // Temporarily store the transformed vertex positions for use below
     fs_Pos = modelposition;
 
