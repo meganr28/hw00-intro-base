@@ -14,6 +14,7 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 const controls = {
   tesselations: 5,
   color: [ 255, 0, 0, 255 ],
+  shader:'Lambert',
   'Load Scene': loadScene, // A function pointer, essentially
 };
 
@@ -22,6 +23,8 @@ let square: Square;
 let cube: Cube;
 let prevTesselations: number = 5;
 let currentColor = vec4.fromValues(1, 0, 0, 1);
+let currentShader = 'Lambert';
+let time = 0;
 
 function loadScene() {
   icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
@@ -48,6 +51,7 @@ function main() {
                                                                                        controls.color[1] / 255, 
                                                                                        controls.color[2] / 255, 
                                                                                        controls.color[3] / 255); });
+  gui.add(controls,'shader', ['Lambert', 'Noise']).onChange(function() { currentShader = controls.shader });
   gui.add(controls, 'Load Scene');
 
   // get canvas and webgl context
@@ -74,6 +78,11 @@ function main() {
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/lambert-frag.glsl')),
   ]);
 
+  const noise = new ShaderProgram([
+    new Shader(gl.VERTEX_SHADER, require('./shaders/noise-vert.glsl')),
+    new Shader(gl.FRAGMENT_SHADER, require('./shaders/noise-frag.glsl')),
+  ]);
+
   // This function will be called every frame
   function tick() {
     camera.update();
@@ -86,7 +95,15 @@ function main() {
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
-    renderer.render(camera, lambert, currentColor, [
+
+    let shader = lambert;
+    if (currentShader == 'Noise') {
+      shader = noise;
+    }
+
+    time++;
+
+    renderer.render(camera, shader, currentColor, time, [
       // icosphere,
       // square,
       cube
