@@ -22,6 +22,7 @@ uniform mat4 u_ViewProj;    // The matrix that defines the camera's transformati
                             // but in HW3 you'll have to generate one yourself
 
 uniform int u_Time;         // The current time elapsed since the start of the program.
+uniform float u_NoiseScale;   // The amount of influence the noise value will have on the vertex displacement.
 
 in vec4 vs_Pos;             // The array of vertex positions passed to the shader
 
@@ -151,7 +152,7 @@ vec4 transformVertex(vec4 v)
     mat4 rot = rotZ * rotY * rotX;
 
     // Scale
-    mat4 scl = scale3D(vec3(cos(float(u_Time) / 200.f), 1.0f, sin(float(u_Time) / 200.f)));
+    mat4 scl = scale3D(vec3(abs(0.5f * cos(float(u_Time) / 200.f)), 1.0f, 0.5f * sin(float(u_Time) / 200.f)));
     
     // Translate
     mat4 trans = translate3D(vec3(0.f, 0.f, 0.f));
@@ -173,8 +174,9 @@ void main()
 
     vec4 transformed_Pos = transformVertex(vs_Pos);
 
-    //float noise = sin(fbm3D((float(u_Time) / 100.0f) * vs_Pos.xyz));
-    //transformed_Pos = vs_Pos + noise * vs_Nor;
+    float noise = sin(fbm3D((float(u_Time) / 100.0f) * vs_Pos.xyz));
+    transformed_Pos += u_NoiseScale * noise * vs_Nor;
+
     vec4 modelposition = u_Model * (transformed_Pos);   // Temporarily store the transformed vertex positions for use below
     fs_Pos = modelposition;
 

@@ -15,6 +15,8 @@ const controls = {
   tesselations: 5,
   color: [ 255, 0, 0, 255 ],
   shader: 'Noise',
+  shape: 'Icosphere',
+  noiseScale: 1.0,
   'Load Scene': loadScene, // A function pointer, essentially
 };
 
@@ -24,6 +26,8 @@ let cube: Cube;
 let prevTesselations: number = 5;
 let currentColor = vec4.fromValues(1, 0, 0, 1);
 let currentShader = 'Noise';
+let currentShape = 'Icosphere';
+let prevNoiseScale: number = 1.0;
 let time = 0;
 
 function loadScene() {
@@ -52,6 +56,8 @@ function main() {
                                                                                        controls.color[2] / 255, 
                                                                                        controls.color[3] / 255); });
   gui.add(controls,'shader', ['Noise', 'Lambert']).onChange(function() { currentShader = controls.shader });
+  gui.add(controls,'shape', ['Icosphere', 'Cube', 'Square']).onChange(function() { currentShape = controls.shape });
+  gui.add(controls, 'noiseScale', 0.0, 1.0).step(0.1);
   gui.add(controls, 'Load Scene');
 
   // get canvas and webgl context
@@ -83,6 +89,8 @@ function main() {
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/noise-frag.glsl')),
   ]);
 
+  noise.setNoiseScale(controls.noiseScale);
+
   // This function will be called every frame
   function tick() {
     camera.update();
@@ -95,19 +103,31 @@ function main() {
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
+    if (controls.noiseScale != prevNoiseScale)
+    {
+      prevNoiseScale = controls.noiseScale;
+      noise.setNoiseScale(controls.noiseScale);
+    }
 
     let shader = lambert;
     if (currentShader == 'Noise') {
       shader = noise;
     }
 
+    let shape = [];
+    if (currentShape == 'Icosphere') {
+      shape.push(icosphere);
+    }
+    else if (currentShape == 'Cube') {
+      shape.push(cube);
+    }
+    else if (currentShape == 'Square') {
+      shape.push(square);
+    }
+
     time++;
 
-    renderer.render(camera, shader, currentColor, time, [
-      icosphere,
-      // square,
-      // cube
-    ]);
+    renderer.render(camera, shader, currentColor, time, shape);
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame

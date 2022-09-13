@@ -28,12 +28,13 @@ out vec4 out_Col; // This is the final output color that you will see on your
 
 const float PI = 3.1415926535897932384626433832795;
 
+// From Inigo Quilez - "Color Palettes" https://iquilezles.org/articles/palettes/ 
 vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d)
 {
     return a + b * cos(6.28318 * (c * t + d));
 }
 
-// Interpolation function based on CIS 560 Slides - "Noise Functions"
+// Noise function implementation based on CIS 560 and CIS 566 Slides - "Noise Functions"
 float noise3D(vec3 p) 
 {
     return fract(sin((dot(p, vec3(127.1, 311.7, 191.999)))) * 43758.5453);
@@ -89,18 +90,18 @@ float fbm3D(vec3 p)
     return total;
 }
 
-mat4 rotateZ3D(float angle)
-{
-    return mat4(cos(angle), sin(angle), 0, 0,
-                -sin(angle), cos(angle), 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
-}
-
 void main()
 {
         // Material base color (before shading)
         vec4 diffuseColor = u_Color;
+
+        // Define color palette
+        vec3 a = vec3(0.5f);
+        vec3 b = vec3(0.5f);
+        vec3 c = vec3(1.0f);
+        vec3 d = vec3(0.8f, 0.9f, 0.3f);
+        float t = 0.5f * sin(float(u_Time) / 500.f);
+        vec3 paletteColor = palette(t, a, b, c, d);
 
         // Calculate the diffuse term for Lambert shading
         float diffuseTerm = dot(normalize(fs_Nor), normalize(fs_LightVec));
@@ -113,11 +114,13 @@ void main()
                                                             //to simulate ambient lighting. This ensures that faces that are not
                                                             //lit by our point light are not completely black.
 
-        // Compute final shaded color
+        // Calculate noise (nested FBM)
         float s = sin(float(u_Time) / 500.0f);
         vec3 p1 = vec3(fbm3D(fs_Pos.xyz), fbm3D(fs_Pos.xyz + vec3(1.3f, 3.5f, 4.5f)), fbm3D(fs_Pos.xyz + vec3(4.4f, 3.2f, 9.0f)));
         vec3 p2 = vec3(fbm3D(fs_Pos.xyz), fbm3D(fs_Pos.xyz + vec3(10.3f, 3.3f, 1.4f)), fbm3D(fs_Pos.xyz + vec3(5.6f, 45.2f, 2.0f)));
-
         float fbm = fbm3D(p1 + s * p2);
+
+        // Compute final shaded color
+        diffuseColor.xyz = mix(diffuseColor.xyz, paletteColor.xyz, fbm);
         out_Col = vec4(vec3(fbm * diffuseColor.xyz) * lightIntensity, diffuseColor.a);
 }
